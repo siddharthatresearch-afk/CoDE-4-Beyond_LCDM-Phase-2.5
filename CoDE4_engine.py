@@ -595,7 +595,7 @@ def _print_dark_sector_table(label, fraction_fn):
 def run_integrated_diagnostics(engine_models=None, include_supplied=True):
     """Run dark-sector diagnostics without applying a post-fit SH0ES scale factor."""
     if include_supplied:
-        print("\\n" + "=" * 100 + "\\n  DARK-SECTOR DIAGNOSTICS\\n" + "=" * 100, flush=True)
+        print("\n" + "=" * 100 + "\n  DARK-SECTOR DIAGNOSTICS\n" + "=" * 100, flush=True)
         _print_dark_sector_table(
             "Dark-sector fractions (CoDE4 SN-only Omega_m)",
             lambda z: check_dark_sector_fraction(z, Om=CODE4_OMEGA_M, eps=SHOES_EPS, Or=SHOES_OR),
@@ -1069,6 +1069,7 @@ if __name__ == "__main__":
         main()
     else:
         raise SystemExit(cli(sys.argv[1:]))
+
 
 
 
