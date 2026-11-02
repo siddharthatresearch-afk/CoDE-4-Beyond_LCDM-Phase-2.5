@@ -36,7 +36,7 @@ KNOWN LIMITS (read these before quoting any number):
     at the top of the data section so you can audit/update it.
 
 INTEGRATED DIAGNOSTICS ADDED:
-  * SH0ES Hubble-flow corrected scale and forward H0 prediction.
+  * Full SH0ES three-rung local-H0 refit and a separately labeled forward H0 projection.
   * Point-by-point absolute differences for all 13 DESI DR2 BAO observables.
   * Full Pantheon+ Hubble-flow supernova distance shifts; the released covariance is
     used only to remove a common magnitude intercept.
@@ -469,7 +469,6 @@ class MatterPower:
 # engine uses its own (normally h-dependent) radiation bookkeeping.
 SHOES_OR = 9.2e-5
 SHOES_EPS = 0.05
-SHOES_H0_MEASURED = 73.04
 SHOES_H0_SIGMA = 1.04
 SHOES_Q0_FIDUCIAL = -0.55
 SHOES_J0_FIDUCIAL = 1.0
@@ -525,28 +524,6 @@ def f_cosmographic(z, q0=SHOES_Q0_FIDUCIAL, j0=SHOES_J0_FIDUCIAL):
             - (1.0 / 6.0) * (1.0 - q0 - 3.0 * q0**2 + j0) * z**2)
 
 
-def shoes_correction_factor(Om, eps=SHOES_EPS, zgrid=SHOES_ZGRID,
-                            weights=SHOES_WEIGHTS, Or=SHOES_OR,
-                            q0=SHOES_Q0_FIDUCIAL, j0=SHOES_J0_FIDUCIAL):
-    """Weighted mean of exact/model-to-cosmographic distance-shape ratios."""
-    zgrid = np.asarray(zgrid, dtype=float)
-    weights = np.asarray(weights, dtype=float)
-    if zgrid.ndim != 1 or weights.shape != zgrid.shape or zgrid.size == 0:
-        raise ValueError("zgrid and weights must be non-empty 1-D arrays of equal shape.")
-    if np.any(zgrid <= 0) or np.any(weights < 0) or not np.any(weights > 0):
-        raise ValueError("Require zgrid > 0 and non-negative weights with positive total weight.")
-    ratios = np.array([f_exact(z, Om, eps, Or) / f_cosmographic(z, q0, j0) for z in zgrid])
-    if np.any(~np.isfinite(ratios)):
-        raise ValueError("SH0ES distance ratio contains a non-finite value.")
-    return float(np.average(ratios, weights=weights))
-
-
-def compute_shoes_h0(Om, eps=SHOES_EPS, H0_measured=SHOES_H0_MEASURED,
-                     zgrid=SHOES_ZGRID, weights=SHOES_WEIGHTS, Or=SHOES_OR):
-    """Return the supplied snippet's weighted SH0ES-inferred H0 correction."""
-    return float(H0_measured * shoes_correction_factor(Om, eps, zgrid, weights, Or))
-
-
 def f_exact_for_cosmo(z, c):
     """Distance shape evaluated with a model instance from the full Cosmo engine."""
     z = float(z)
@@ -555,22 +532,6 @@ def f_exact_for_cosmo(z, c):
     integral = quad(lambda x: 1.0 / float(c.E(x)), 0.0, z,
                     epsabs=0.0, epsrel=1e-12, limit=200)[0]
     return (1.0 + z) * integral / z
-
-
-def compute_shoes_h0_for_cosmo(c, H0_measured=SHOES_H0_MEASURED,
-                               zgrid=SHOES_ZGRID, weights=SHOES_WEIGHTS):
-    """Apply the same SH0ES weighting to a fitted model from the full engine."""
-    zgrid = np.asarray(zgrid, dtype=float)
-    weights = np.asarray(weights, dtype=float)
-    if zgrid.ndim != 1 or weights.shape != zgrid.shape or zgrid.size == 0:
-        raise ValueError("zgrid and weights must be non-empty 1-D arrays of equal shape.")
-    if np.any(zgrid <= 0) or np.any(weights < 0) or not np.any(weights > 0):
-        raise ValueError("Require zgrid > 0 and non-negative weights with positive total weight.")
-    ratios = np.array([
-        f_exact_for_cosmo(z, c) / f_cosmographic(z)
-        for z in zgrid
-    ])
-    return float(H0_measured * np.average(ratios, weights=weights))
 
 
 def predict_shoes_apparent_h0(c, zgrid=SHOES_ZGRID, weights=SHOES_WEIGHTS):
@@ -632,34 +593,15 @@ def _print_dark_sector_table(label, fraction_fn):
 
 
 def run_integrated_diagnostics(engine_models=None, include_supplied=True):
-    """Run supplied diagnostics and optionally report models from the full engine."""
+    """Run dark-sector diagnostics without applying a post-fit SH0ES scale factor."""
     if include_supplied:
-        print("\n" + "=" * 100 + "\n  INTEGRATED SH0ES + DARK-SECTOR DIAGNOSTICS\n" + "=" * 100, flush=True)
-        print("  Direct comparison preserves the snippets' fixed Or=9.2e-5 and uniform-in-z weights.", flush=True)
-        print("  Note: the Om=0.3155 case is the supplied parameter proxy; fixed physical densities are handled by Cosmo.physical().", flush=True)
-        print(f"\n  {'Comparison':<46} {'Omega_m':>9} {'eps':>7} {'factor':>10} {'H0 inferred':>14}")
-        print("  " + "-" * 91)
-        direct_cases = [
-            ("CoDE4 SN-only unanchored fit", CODE4_OMEGA_M, SHOES_EPS),
-            ("CoDE5 supplied Om proxy (not a density solve)", 0.3155, SHOES_EPS),
-        ]
-        for label, Om, eps in direct_cases:
-            factor = shoes_correction_factor(Om, eps)
-            h0_local = SHOES_H0_MEASURED * factor
-            print(f"  {label:<46} {Om:9.4f} {eps:7.3f} {factor:10.6f} {h0_local:14.3f}")
-
+        print("\\n" + "=" * 100 + "\\n  DARK-SECTOR DIAGNOSTICS\\n" + "=" * 100, flush=True)
         _print_dark_sector_table(
-            "Dark-sector fractions (fixed-Or SH0ES-shape helper; CoDE4 SN-only Omega_m)",
+            "Dark-sector fractions (CoDE4 SN-only Omega_m)",
             lambda z: check_dark_sector_fraction(z, Om=CODE4_OMEGA_M, eps=SHOES_EPS, Or=SHOES_OR),
         )
 
     if engine_models:
-        print("\n  Applying the same distance weighting to models solved by the full Cosmo engine:", flush=True)
-        print(f"  {'Engine model':<40} {'Omega_m':>9} {'Omega_r':>10} {'H0 engine':>11} {'SH0ES-corrected':>17}")
-        print("  " + "-" * 91)
-        for c in engine_models:
-            h0_local = compute_shoes_h0_for_cosmo(c)
-            print(f"  {c.name:<40} {c.Om:9.5f} {c.Or:10.6g} {c.H0:11.3f} {h0_local:17.3f}")
         for c in engine_models:
             _print_dark_sector_table(
                 f"Dark-sector fractions from the full engine: {c.name}",
@@ -997,7 +939,8 @@ def main(argv=()):
     print("Its model-vs-fiducial magnitude correction is Delta_mu=5 log10[f_CoDE(z)/f_fid(z)].")
     print("Only the 277 Hubble-flow RHS entries are corrected; anchor, Cepheid, and calibrator rows stay as released.")
     print("With A=L^T and the released full covariance C, solve q=(A^T C^-1 A)^-1 A^T C^-1 y_model.")
-    print("The released ladder parameterization gives H0=10^(q[46]/5); this refit has no CMB prior and no H0 target.")
+    print("The released ladder parameterization gives H0=10^(q[46]/5); no scalar SH0ES H0 target or CMB prior enters this refit.")
+    print("The fitted ladder value is reported directly; no post-fit weighted scale factor is applied.")
     print(f"Fitted ladder component q[46], baseline:       {local_fit['q46_baseline']:.8f}")
     print(f"Fitted ladder component q[46], CoDE:           {local_fit['q46_model']:.8f}")
     print("\n[LOCAL HUBBLE CONSTANT - FULL SH0ES THREE-RUNG REFIT]")
@@ -1012,7 +955,6 @@ def main(argv=()):
     print("The SH0ES matrix omits SN identifiers; Pantheon+ rows are associated by matching the fiducial RHS values.")
     print(f"Hubble-flow residual RMS, baseline -> CoDE:       {local_fit['hf_rms_baseline_mag']:.4f} -> {local_fit['hf_rms_model_mag']:.4f} mag")
     print(f"Forward SH0ES-style H0 from model distance scale: {predict_shoes_apparent_h0(model):.4f} km/s/Mpc (inherits the model's CMB-calibrated global H0)")
-    print(f"Legacy weighted correction applied to 73.04 input: {compute_shoes_h0(om, eps):.4f} km/s/Mpc (SH0ES-anchored diagnostic)")
 
     cmb_rows = [
         ("Global H0 from theta* calibration", model.H0, PLANCK["H0"][0]),
@@ -1127,5 +1069,6 @@ if __name__ == "__main__":
         main()
     else:
         raise SystemExit(cli(sys.argv[1:]))
+
 
 
