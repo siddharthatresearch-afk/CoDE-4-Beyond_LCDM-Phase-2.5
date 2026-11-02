@@ -32,7 +32,7 @@ Hubble-flow match residual after offset removal:  RMS=0.0020 mag; max=0.0106 mag
 The SH0ES matrix omits SN identifiers; Pantheon+ rows are associated by matching the fiducial RHS values.
 Hubble-flow residual RMS, baseline -> CoDE:       0.1350 -> 0.1351 mag
 Forward SH0ES-style H0 from model distance scale: 66.5107 km/s/Mpc (inherits the model's CMB-calibrated global H0)
-Legacy weighted correction applied to 73.04 input: 72.8665 km/s/Mpc (SH0ES-anchored diagnostic)
+Post-fit weighted correction: removed; the three-rung H0 is reported directly.
 
 [COMPRESSED CMB SCALES - PLANCK 2018 REFERENCES]
 Observable                                        Model   Planck reference     Difference
