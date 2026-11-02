@@ -537,9 +537,10 @@ def f_exact_for_cosmo(z, c):
 def predict_shoes_apparent_h0(c, zgrid=SHOES_ZGRID, weights=SHOES_WEIGHTS):
     """Forward-predict the H0 a fiducial SH0ES-style fit would infer.
 
-    Unlike compute_shoes_h0_for_cosmo, this does not use measured SH0ES H0
-    as an input. The model global H0 sets its distance scale, and the low-z
-    distance-shape ratio maps that scale to the fiducial cosmographic fit.
+    This is a separate forward projection, not the three-rung ladder refit.
+    It does not use measured SH0ES H0 as an input. The model global H0 sets its
+    distance scale, and the low-z distance-shape ratio maps that scale to the
+    fiducial cosmographic fit.
     """
     zgrid = np.asarray(zgrid, dtype=float)
     weights = np.asarray(weights, dtype=float)
@@ -1069,6 +1070,7 @@ if __name__ == "__main__":
         main()
     else:
         raise SystemExit(cli(sys.argv[1:]))
+
 
 
 
